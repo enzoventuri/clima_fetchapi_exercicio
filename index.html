@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atmosfera — Painel de Clima</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,450;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<div class="sky-layer" aria-hidden="true"></div>
+
+<div class="app">
+
+  <!-- ============================================================
+       BUSCA
+       JS: capturar submit de #searchForm e input de #cityInput
+       #geoBtn -> disparar geolocalização do navegador
+       ============================================================ -->
+  <header class="search-bar">
+    <form id="searchForm" role="search">
+      <input
+        id="cityInput"
+        type="text"
+        name="city"
+        placeholder="Buscar cidade..."
+        autocomplete="off"
+        aria-label="Nome da cidade"
+      >
+      <button id="searchBtn" type="submit" aria-label="Buscar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </button>
+    </form>
+    <button id="geoBtn" type="button" aria-label="Usar minha localização">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path>
+      </svg>
+    </button>
+  </header>
+
+  <!-- ============================================================
+       ESTADOS DE CARREGAMENTO / ERRO
+       JS: alternar o atributo [hidden] em cada bloco conforme o fetch
+       ============================================================ -->
+  <div id="loadingState" class="state-message" hidden>
+    Carregando dados do clima...
+  </div>
+
+  <div id="errorState" class="state-message error" hidden>
+    Não foi possível encontrar essa cidade. Tente novamente.
+  </div>
+
+  <!-- ============================================================
+       CONTEÚDO PRINCIPAL
+       JS: preencher os elementos com id a partir da resposta da API
+       (valores abaixo são apenas exemplo estático)
+       ============================================================ -->
+  <main id="weatherContent" class="weather-content">
+
+    <!-- Cartão principal: condição atual -->
+    <section class="hero-card glass" aria-live="polite">
+      <div class="hero-top">
+        <div class="location">
+          <h1 id="cityName">São Paulo, BR</h1>
+          <p id="dateTime">Terça-feira, 29 de julho · 14:32</p>
+        </div>
+        <div class="weather-icon-wrap">
+          <img
+            id="weatherIcon"
+            class="weather-icon"
+            src="https://openweathermap.org/img/wn/02d@2x.png"
+            alt="Parcialmente nublado"
+            data-weather-code="02d"
+          >
+        </div>
+      </div>
+
+      <div class="hero-main">
+        <span id="currentTemp" class="temp-display" data-unit="C">24°</span>
+        <div class="hero-desc">
+          <p id="weatherDescription">Parcialmente nublado</p>
+          <p id="feelsLike">Sensação de <span id="feelsLikeTemp">26°</span></p>
+        </div>
+      </div>
+
+      <div class="minmax">
+        <span>↑ Máx <span id="tempMax">27°</span></span>
+        <span>↓ Mín <span id="tempMin">18°</span></span>
+        <span>💧 <span id="precipChance">10%</span> de chuva</span>
+      </div>
+    </section>
+
+    <!-- Elemento-assinatura: arco do trajeto solar -->
+    <section class="sun-arc-card glass">
+      <div class="sun-arc-header">
+        <h2>Trajeto do sol</h2>
+        <span id="dayLength">12h 34min de sol</span>
+      </div>
+
+      <!--
+        JS: recalcular a posição de #sunMarker ao longo de #arcPathProgress
+        com base em (agora - nascer_do_sol) / (pôr_do_sol - nascer_do_sol).
+        Sugestão: usar path.getPointAtLength(path.getTotalLength() * progresso)
+      -->
+      <svg id="sunArcSvg" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <linearGradient id="sunGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#4A4E8C"/>
+            <stop offset="50%" stop-color="#FF8C69"/>
+            <stop offset="100%" stop-color="#FFD27D"/>
+          </linearGradient>
+        </defs>
+        <line class="horizon-line" x1="10" y1="128" x2="390" y2="128"></line>
+        <path id="arcPath" d="M20,128 Q200,-10 380,128"></path>
+        <path id="arcPathProgress" data-progress="0.62" d="M20,128 Q200,-10 380,128"
+              stroke-dasharray="480" stroke-dashoffset="182"></path>
+        <circle id="sunMarker" cx="255" cy="18" r="7" data-progress="0.62"></circle>
+      </svg>
+
+      <div class="sun-times">
+        <div>
+          <span class="label">Nascer do sol</span>
+          <span id="sunrise">06:12</span>
+        </div>
+        <div style="text-align:right">
+          <span class="label">Pôr do sol</span>
+          <span id="sunset">18:46</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Detalhes atmosféricos -->
+    <section class="details-grid">
+      <div class="detail-card glass" data-detail="humidity">
+        <span class="detail-label">Umidade</span>
+        <span class="detail-value" id="humidity">64<small>%</small></span>
+      </div>
+      <div class="detail-card glass" data-detail="wind">
+        <span class="detail-label">Vento</span>
+        <span class="detail-value" id="windSpeed">14<small>km/h</small></span>
+      </div>
+      <div class="detail-card glass" data-detail="pressure">
+        <span class="detail-label">Pressão</span>
+        <span class="detail-value" id="pressure">1013<small>hPa</small></span>
+      </div>
+      <div class="detail-card glass" data-detail="visibility">
+        <span class="detail-label">Visibilidade</span>
+        <span class="detail-value" id="visibility">10<small>km</small></span>
+      </div>
+      <div class="detail-card glass" data-detail="uv">
+        <span class="detail-label">Índice UV</span>
+        <span class="detail-value" id="uvIndex">5<small>mod.</small></span>
+      </div>
+      <div class="detail-card glass" data-detail="dewpoint">
+        <span class="detail-label">Ponto de orvalho</span>
+        <span class="detail-value" id="dewPoint">17<small>°</small></span>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PREVISÃO POR HORA
+         JS: gerar dinamicamente clonando #hourlyItemTemplate para
+         cada item dentro de #hourlyForecast (os itens abaixo são exemplo)
+         ============================================================ -->
+    <section class="hourly-section glass">
+      <h2>Previsão por hora</h2>
+      <div class="hourly-scroll" id="hourlyForecast">
+
+        <template id="hourlyItemTemplate">
+          <div class="hourly-item">
+            <span class="hourly-time">--:--</span>
+            <img class="hourly-icon" src="" alt="">
+            <span class="hourly-temp">--°</span>
+          </div>
+        </template>
+
+        <div class="hourly-item">
+          <span class="hourly-time">Agora</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/02d.png" alt="">
+          <span class="hourly-temp">24°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">15:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/02d.png" alt="">
+          <span class="hourly-temp">25°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">16:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/03d.png" alt="">
+          <span class="hourly-temp">25°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">17:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/03d.png" alt="">
+          <span class="hourly-temp">23°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">18:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/50d.png" alt="">
+          <span class="hourly-temp">21°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">19:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/01n.png" alt="">
+          <span class="hourly-temp">19°</span>
+        </div>
+        <div class="hourly-item">
+          <span class="hourly-time">20:00</span>
+          <img class="hourly-icon" src="https://openweathermap.org/img/wn/01n.png" alt="">
+          <span class="hourly-temp">18°</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============================================================
+         PREVISÃO DIÁRIA (5 dias)
+         JS: gerar dinamicamente clonando #dailyItemTemplate para
+         cada item dentro de #dailyForecast
+         Para .temp-bar-fill, ajustar 'width' e 'left' em % conforme
+         (dia.min, dia.max) relativo ao mínimo/máximo da semana
+         ============================================================ -->
+    <section class="daily-section glass">
+      <h2>Próximos dias</h2>
+      <div class="daily-list" id="dailyForecast">
+
+        <template id="dailyItemTemplate">
+          <div class="daily-item">
+            <span class="daily-day">--</span>
+            <img class="daily-icon" src="" alt="">
+            <span class="daily-desc">--</span>
+            <div class="daily-temps">
+              <span class="min">--°</span>
+              <div class="temp-bar"><div class="temp-bar-fill" style="left:0%;width:0%"></div></div>
+              <span class="max">--°</span>
+            </div>
+          </div>
+        </template>
+
+        <div class="daily-item">
+          <span class="daily-day">Quarta</span>
+          <img class="daily-icon" src="https://openweathermap.org/img/wn/01d.png" alt="">
+          <span class="daily-desc">Céu limpo</span>
+          <div class="daily-temps">
+            <span class="min">17°</span>
+            <div class="temp-bar"><div class="temp-bar-fill" style="left:10%;width:60%"></div></div>
+            <span class="max">28°</span>
+          </div>
+        </div>
+        <div class="daily-item">
+          <span class="daily-day">Quinta</span>
+          <img class="daily-icon" src="https://openweathermap.org/img/wn/02d.png" alt="">
+          <span class="daily-desc">Poucas nuvens</span>
+          <div class="daily-temps">
+            <span class="min">18°</span>
+            <div class="temp-bar"><div class="temp-bar-fill" style="left:15%;width:55%"></div></div>
+            <span class="max">27°</span>
+          </div>
+        </div>
+        <div class="daily-item">
+          <span class="daily-day">Sexta</span>
+          <img class="daily-icon" src="https://openweathermap.org/img/wn/10d.png" alt="">
+          <span class="daily-desc">Chuva leve</span>
+          <div class="daily-temps">
+            <span class="min">16°</span>
+            <div class="temp-bar"><div class="temp-bar-fill" style="left:5%;width:45%"></div></div>
+            <span class="max">22°</span>
+          </div>
+        </div>
+        <div class="daily-item">
+          <span class="daily-day">Sábado</span>
+          <img class="daily-icon" src="https://openweathermap.org/img/wn/03d.png" alt="">
+          <span class="daily-desc">Nublado</span>
+          <div class="daily-temps">
+            <span class="min">15°</span>
+            <div class="temp-bar"><div class="temp-bar-fill" style="left:0%;width:50%"></div></div>
+            <span class="max">24°</span>
+          </div>
+        </div>
+        <div class="daily-item">
+          <span class="daily-day">Domingo</span>
+          <img class="daily-icon" src="https://openweathermap.org/img/wn/01d.png" alt="">
+          <span class="daily-desc">Ensolarado</span>
+          <div class="daily-temps">
+            <span class="min">18°</span>
+            <div class="temp-bar"><div class="temp-bar-fill" style="left:20%;width:65%"></div></div>
+            <span class="max">29°</span>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Dados fornecidos por <span id="apiSource">API de clima</span> · Atualizado às <span id="lastUpdated">14:32</span></p>
+  </footer>
+
+</div>
+
+<script src="./app.js"></script>
+
+</body>
+</html>
